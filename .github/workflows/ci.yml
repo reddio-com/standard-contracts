@@ -1,0 +1,42 @@
+name: Build Contracts
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  build-image:
+    name: Build ABI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install software-properties-common -y
+          
+          sudo add-apt-repository ppa:ethereum/ethereum
+          sudo apt-get install -y solc ethereum
+      
+      - name: Compile contracts
+        run: |
+          npm install @openzeppelin/contracts
+          mkdir -p abi/erc20 abi/erc720 output/erc20 output/erc721
+          solc --abi ./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol --output-dir ./abi/erc20
+          solc --abi ./node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol --output-dir ./abi/erc721
+
+          abigen --abi=./abi/erc20/ERC20.abi --pkg=erc20 --out=./output/erc20/ERC20.go
+          abigen --abi=./abi/erc721/ERC721.abi --pkg=erc721 --out=./output/erc721/ERC721.go
+
+          rm -rf ./node_modules package-lock.json package.json
+          mv output/* ./ && rm -rf output
+          ls && pwd
+
+      - name: Commit & Push changes
+        uses: actions-js/push@master
+        with:
+          branch: master
+          github_token: ${{ secrets.GITHUB_TOKEN }}
